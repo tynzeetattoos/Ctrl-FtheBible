@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KJV Bible Reader</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        #header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        #content {
+            padding: 20px;
+            max-width: 800px;
+            margin: auto;
+        }
+        select {
+            margin: 20px 0;
+            padding: 10px;
+            font-size: 16px;
+        }
+        #bibleText {
+            white-space: pre-wrap;
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>KJV Bible Reader</h1>
+        <p>Select a Book and Chapter to Read</p>
+    </div>
+    <div id="content">
+        <select id="bookSelect"></select>
+        <select id="chapterSelect"></select>
+        <div id="bibleText">Please select a book and chapter to read.</div>
+    </div>
+
+    <script>
+        const bookSelect = document.getElementById("bookSelect");
+        const chapterSelect = document.getElementById("chapterSelect");
+        const bibleText = document.getElementById("bibleText");
+        let bibleData = [];
+
+        // Load the Bible JSON data from the local file
+        fetch('bible_KJV.json')
+            .then(response => {
+                console.log('Fetching Bible data...');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Fetched data:', data);
+                // Check if the data is an array or if it's nested inside an object
+                if (data && data.row && Array.isArray(data.row)) {
+                    bibleData = data.row;
+                } else if (Array.isArray(data)) {
+                    bibleData = data;
+                } else if (data.verses) {
+                    bibleData = data.verses;
+                } else {
+                    console.error('Unexpected data format:', data);
+                    bibleText.textContent = 'Error: Unexpected data format. Please check the JSON structure.';
+                    return;
+                }
+                console.log('Bible data loaded successfully:', bibleData);
+                // Populate books dropdown after data is loaded
+                const books = [...new Set(bibleData.map(verse => verse.book_name))];
+                if (books.length === 0) {
+                    console.error('No books found in Bible data.');
+                    bibleText.textContent = 'Error: No books found in Bible data.';
+                    return;
+                }
+                books.forEach((book, index) => {
+                    let option = document.createElement("option");
+                    option.value = book;
+                    option.textContent = book;
+                    bookSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading Bible data:', error);
+                bibleText.textContent = 'Error loading Bible data. Please try again later.';
+            });
+
+        // Populate chapters dropdown based on selected book
+        bookSelect.addEventListener("change", () => {
+            console.log('Book selected:', bookSelect.value);
+            chapterSelect.innerHTML = "";
+            const selectedBook = bookSelect.value;
+            const chapters = [...new Set(bibleData.filter(verse => verse.book_name === selectedBook).map(verse => verse.chapter))];
+
+            if (chapters.length === 0) {
+                console.error('No chapters found for the selected book:', selectedBook);
+                bibleText.textContent = `Error: No chapters found for ${selectedBook}.`;
+                return;
+            }
+
+            chapters.forEach(chapter => {
+                let option = document.createElement("option");
+                option.value = chapter;
+                option.textContent = "Chapter " + chapter;
+                chapterSelect.appendChild(option);
+            });
+        });
+
+        // Event listener for when a chapter is selected
+        chapterSelect.addEventListener("change", () => {
+            console.log('Chapter selected:', chapterSelect.value);
+            const selectedBook = bookSelect.value;
+            const selectedChapter = parseInt(chapterSelect.value);
+            loadChapter(selectedBook, selectedChapter);
+        });
+
+        // Function to load chapter content from the fetched data
+        function loadChapter(book, chapter) {
+            console.log('Loading chapter:', { book, chapter });
+            const verses = bibleData.filter(item => item.book_name === book && item.chapter === chapter);
+            
+            if (verses.length > 0) {
+                bibleText.textContent = `Book: ${book}
+Chapter: ${chapter}
+
+`;
+                verses.forEach(verse => {
+                    bibleText.textContent += `${verse.verse}. ${verse.text}
+`;
+                });
+            } else {
+                console.error(`No verses found for ${book} chapter ${chapter}`);
+                bibleText.textContent = `Sorry, content for ${book} chapter ${chapter} is not available.`;
+            }
+        }
+    </script>
+</body>
+</html>
